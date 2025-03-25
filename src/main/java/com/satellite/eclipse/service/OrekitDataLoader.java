@@ -65,11 +65,22 @@ public class OrekitDataLoader {
                         } else {
                             logger.info("Fichiers essentiels trouvés: UTC-TAI.history et eopc04_IAU2000.62-now");
                         }
+                        Path jplEphemerisFile = Paths.get(orekitDataPath, "de421.bsp");
+                        System.out.println("jplEphemerisFile: " + jplEphemerisFile);
+
+                        if (!Files.exists(jplEphemerisFile)) {
+                            logger.warn("Fichier JPL manquant dans {}: de421.bsp={}", orekitDataPath, Files.exists(jplEphemerisFile));
+                        } else {
+                            logger.info("Fichier JPL trouvé: de421.bsp");
+                        }
                         
                         // Configurer le DataProvidersManager avec le répertoire de données
                         DataProvidersManager manager = DataContext.getDefault().getDataProvidersManager();
                         manager.addProvider(new DirectoryCrawler(orekitDataFolder));
-                        
+
+                        System.out.println("Nombre de fournisseurs de données Orekit: " + manager.getProviders().size());
+
+
                         isDataLoaded.set(true);
                         logger.info("Données Orekit chargées avec succès");
                     } catch (Exception e) {
