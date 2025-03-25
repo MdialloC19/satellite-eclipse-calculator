@@ -151,20 +151,73 @@ cd satellite-eclipse-calculator
 mvn clean install
 ```
 
-3. Exécuter l'application
+### Démarrage de l'application
+
+#### Méthode 1: Utilisation de Maven
+
 ```bash
+# Démarrage standard
 mvn spring-boot:run
+
+# Démarrage avec logs détaillés (recommandé pour le débogage)
+mvn spring-boot:run -Dspring-boot.run.arguments="--logging.level.com.satellite.eclipse=DEBUG --logging.level.org.orekit=DEBUG"
+```
+
+#### Méthode 2: Utilisation du JAR
+
+```bash
+# Générer le JAR exécutable
+mvn clean package
+
+# Exécuter le JAR
+java -jar target/satellite-eclipse-calculator-0.0.1-SNAPSHOT.jar
+
+# Exécuter avec des logs détaillés
+java -jar target/satellite-eclipse-calculator-0.0.1-SNAPSHOT.jar --logging.level.com.satellite.eclipse=DEBUG --logging.level.org.orekit=DEBUG
 ```
 
 Le serveur démarre sur le port 8081 avec le contexte `/satellite-eclipse`.
 
+### Séquence de démarrage et chargement des données
+
+Lors du démarrage de l'application, les étapes suivantes se produisent:
+
+1. Initialisation du contexte Spring Boot
+2. Exécution de la méthode `initialize()` du service `OrekitDataLoader` (annotation `@PostConstruct`)
+3. Vérification de l'existence du répertoire `orekit-data` et création si nécessaire
+4. Vérification de la présence des fichiers essentiels (`UTC-TAI.history` et `eopc04_IAU2000.62-now`)
+5. Configuration du `DataProvidersManager` d'Orekit pour utiliser les données du répertoire
+6. Démarrage du serveur web et mise à disposition de l'API
+
+```
+[DÉMARRAGE] → [VÉRIFICATION DONNÉES] → [CHARGEMENT OREKIT] → [DÉMARRAGE API]
+```
+
+Les logs afficheront les messages du processus de chargement des données Orekit, y compris les éventuels avertissements ou erreurs.
+
 ### Configuration des données Orekit
 
-Les calculs précis nécessitent des données spécifiques (paramètres d'orientation de la Terre, délais UTC-TAI, etc.). Le composant `OrekitDataDownloader` crée automatiquement un ensemble minimal de données suffisantes pour les calculs de base.
+#### Structure du répertoire orekit-data
 
-Si vous avez besoin de données plus précises, vous pouvez:
-1. Télécharger manuellement les données Orekit depuis [le dépôt officiel](https://gitlab.orekit.org/orekit/orekit-data)
-2. Placer ces données dans le répertoire `orekit-data` à la racine du projet
+```
+orekit-data/
+├── UTC-TAI.history         # Histoire des écarts entre UTC et TAI
+└── eopc04_IAU2000.62-now   # Paramètres d'orientation de la Terre
+```
+
+#### Méthodes d'obtention des données
+
+1. **Création automatique**: Le composant `OrekitDataDownloader` crée automatiquement un ensemble minimal de données lors du premier démarrage.
+
+2. **Téléchargement manuel**: Pour des données plus précises, vous pouvez:
+   - Télécharger manuellement les données Orekit depuis [le dépôt officiel](https://gitlab.orekit.org/orekit/orekit-data)
+   - Placer ces données dans le répertoire `orekit-data` à la racine du projet
+
+3. **Format personnalisé**: Si vous avez besoin de créer manuellement les fichiers:
+   - Le fichier `UTC-TAI.history` doit contenir les écarts entre UTC et TAI au format de date julienne
+   - Le fichier `eopc04_IAU2000.62-now` doit contenir les paramètres d'orientation de la Terre
+
+> **Important**: La précision des calculs d'éclipses dépend directement de la qualité des données Orekit utilisées.
 
 ## Utilisation du service
 

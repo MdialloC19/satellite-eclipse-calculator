@@ -1,0 +1,380 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{caption}
+
+\geometry{margin=2.5cm}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+}
+
+\title{Calcul des Périodes d'Éclipse Satellite avec Orekit}
+\author{SenSat}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Introduction aux Éclipses Satellitaires}
+
+Une \textbf{éclipse satellitaire} se produit lorsqu'un satellite en orbite autour de la Terre entre dans l'ombre ou la pénombre de la Terre. Ce phénomène a d'importantes implications pour les opérations satellitaires, notamment en ce qui concerne la production d'énergie par les panneaux solaires et la gestion thermique du satellite.
+
+\subsection{Types d'Éclipses}
+
+Pour un satellite en orbite terrestre, on distingue deux types d'éclipses:
+
+\begin{itemize}
+    \item \textbf{Éclipse d'ombre (Umbra)}: Le satellite est complètement dans l'ombre de la Terre et aucun rayon solaire direct ne l'atteint.
+    \item \textbf{Éclipse de pénombre (Penumbra)}: Le satellite est partiellement dans l'ombre de la Terre, recevant une fraction réduite de la lumière solaire.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \draw[fill=yellow!20] (0,0) circle (1.5);
+        \draw[->] (1.5,0) -- (3,0);
+        \draw[->] (1.5,0.5) -- (8,0.5);
+        \draw[->] (1.5,-0.5) -- (8,-0.5);
+        \draw (0,0) node {Soleil};
+        
+        \draw[fill=blue!30] (5,0) circle (0.8);
+        \draw (5,0) node {Terre};
+        
+        \draw[fill=black!20] (5,0) -- (8,0.5) -- (8,-0.5) -- cycle;
+        \draw[fill=black!10] (5,0) -- (8,1) -- (8,-1) -- cycle;
+        
+        \draw (6.7,0) node[circle,fill=red,inner sep=1.5pt]{};
+        \draw (6.7,0) node[above] {Satellite};
+        
+        \draw (7,0.3) node {Ombre};
+        \draw (7.5,0.8) node {Pénombre};
+    \end{tikzpicture}
+    \caption{Schéma simplifié des zones d'ombre et de pénombre}
+    \label{fig:eclipse_schema}
+\end{figure}
+
+\subsection{Importance des Calculs d'Éclipse}
+
+Calculer précisément les périodes d'éclipse est crucial pour:
+\begin{itemize}
+    \item Gérer l'alimentation du satellite (dimensionnement des batteries)
+    \item Planifier les opérations qui nécessitent une puissance importante
+    \item Assurer le contrôle thermique du satellite
+    \item Prévoir les pertes de communication potentielles
+\end{itemize}
+
+\section{Fondements Mathématiques}
+
+\subsection{Modèle Géométrique}
+
+Le modèle géométrique de base pour la détection d'éclipses repose sur la position relative de trois corps célestes: le Soleil (source de lumière), la Terre (corps occultant) et le satellite.
+
+\subsubsection{Conditions Géométriques d'Éclipse}
+
+Pour déterminer si un satellite est en éclipse, nous devons vérifier:
+
+\begin{enumerate}
+    \item Si la Terre se trouve entre le Soleil et le satellite
+    \item Si la distance angulaire entre le centre de la Terre et le Soleil, vue depuis le satellite, est inférieure à un certain seuil
+\end{enumerate}
+
+Mathématiquement, soit:
+\begin{itemize}
+    \item $\vec{r}_S$: vecteur position du Soleil dans un repère inertiel
+    \item $\vec{r}_E$: vecteur position de la Terre dans ce même repère
+    \item $\vec{r}_{sat}$: vecteur position du satellite
+\end{itemize}
+
+Pour qu'une éclipse soit possible, on doit avoir:
+\begin{equation}
+(\vec{r}_{sat} - \vec{r}_E) \cdot (\vec{r}_S - \vec{r}_E) < 0
+\end{equation}
+
+Cette condition vérifie que le satellite et le Soleil sont de côtés opposés par rapport à la Terre.
+
+\subsection{Calcul de l'Angle d'Occultation}
+
+L'angle d'occultation détermine si le satellite est dans l'ombre, la pénombre ou en pleine lumière:
+
+\begin{equation}
+\alpha = \arcsin\left(\frac{R_E}{|\vec{r}_{sat} - \vec{r}_E|}\right) + \arcsin\left(\frac{R_S}{|\vec{r}_S - \vec{r}_{sat}|}\right)
+\end{equation}
+
+Où:
+\begin{itemize}
+    \item $R_E$ est le rayon de la Terre
+    \item $R_S$ est le rayon du Soleil
+\end{itemize}
+
+Si l'angle entre les directions Terre-Satellite et Terre-Soleil est:
+\begin{itemize}
+    \item Inférieur à $\alpha$: le satellite est en éclipse totale (ombre)
+    \item Compris entre $\alpha$ et $\alpha + \epsilon$: le satellite est en éclipse partielle (pénombre)
+    \item Supérieur à $\alpha + \epsilon$: le satellite est en pleine lumière
+\end{itemize}
+
+\section{Implémentation dans Orekit}
+
+Orekit est une bibliothèque open-source écrite en Java qui fournit des algorithmes précis pour la mécanique spatiale et l'astrodynamique. Elle inclut des fonctionnalités pour la détection des éclipses.
+
+\subsection{Modèle de Données de Satellite}
+
+Orekit utilise les données TLE (Two-Line Element) pour initialiser l'orbite d'un satellite:
+
+\begin{verbatim}
+ISS (ZARYA)
+1 25544U 98067A   21086.42859439  .00000318  00000-0  16195-4 0  9991
+2 25544  51.6445 354.6522 0003156  48.6176  25.4760 15.48939243277469
+\end{verbatim}
+
+Ces données contiennent les éléments orbitaux qui définissent complètement l'orbite du satellite à un instant donné (l'époque).
+
+\subsection{Détection d'Éclipses dans Orekit}
+
+Orekit utilise un système d'événements pour détecter les éclipses. L'algorithme de détection d'éclipses se décompose en plusieurs étapes:
+
+\subsubsection{Initialisation des Modèles}
+
+\begin{enumerate}
+    \item Configuration du propagateur orbital pour simuler le mouvement du satellite
+    \item Définition des corps célestes impliqués (Terre, Soleil)
+    \item Configuration du détecteur d'éclipses avec les paramètres appropriés
+\end{enumerate}
+
+\subsubsection{Détection des Événements}
+
+Orekit modélise une éclipse comme un "événement" qui se produit lorsque le satellite entre ou sort de l'ombre. Mathématiquement, un événement est détecté lorsqu'une fonction $g(t)$ change de signe:
+
+\begin{equation}
+g(t) = 
+\begin{cases}
+< 0 & \text{si le satellite est dans l'ombre} \\
+> 0 & \text{si le satellite est en pleine lumière}
+\end{cases}
+\end{equation}
+
+Dans Orekit, cette fonction est implémentée dans la classe \texttt{EclipseDetector}.
+
+\subsection{Exemple de Code Orekit}
+
+Voici comment le détecteur d'éclipses est configuré dans Orekit:
+
+\begin{verbatim}
+// Obtention des corps célestes
+PVCoordinatesProvider sun = CelestialBodyFactory.getSun();
+PVCoordinatesProvider earth = CelestialBodyFactory.getEarth();
+
+// Création du détecteur d'éclipses
+double earthRadius = Constants.RIGID_EARTH_SEMI_MAJOR_AXIS;
+EclipseDetector eclipseDetector = new EclipseDetector(sun, earthRadius, earth);
+
+// Configuration du gestionnaire d'événements
+eclipseDetector.withHandler(new EventHandler<EclipseDetector>() {
+    @Override
+    public Action eventOccurred(SpacecraftState s, EclipseDetector detector, 
+                              boolean increasing) {
+        if (increasing) {
+            // Le satellite sort de l'éclipse
+            eclipseExits.add(s.getDate());
+        } else {
+            // Le satellite entre en éclipse
+            eclipseEntries.add(s.getDate());
+        }
+        return Action.CONTINUE;
+    }
+});
+
+// Ajout du détecteur au propagateur
+propagator.addEventDetector(eclipseDetector);
+\end{verbatim}
+
+\section{Dynamique Orbitale et Calculs d'Éclipses}
+
+\subsection{Propagation d'Orbite}
+
+Pour calculer les éclipses sur une période donnée, Orekit doit propager l'orbite du satellite dans le temps. Cette propagation utilise des équations différentielles qui tiennent compte:
+
+\begin{itemize}
+    \item De la gravité terrestre (modèle du géopotentiel)
+    \item Des perturbations dues au Soleil et à la Lune (attraction gravitationnelle)
+    \item De la pression de radiation solaire
+    \item De la traînée atmosphérique
+    \item Des autres forces perturbatrices
+\end{itemize}
+
+L'équation fondamentale est:
+
+\begin{equation}
+\ddot{\vec{r}} = -\mu \frac{\vec{r}}{r^3} + \sum \vec{a}_{\text{perturb}}
+\end{equation}
+
+Où:
+\begin{itemize}
+    \item $\vec{r}$ est le vecteur position du satellite
+    \item $\mu$ est le paramètre gravitationnel de la Terre
+    \item $\sum \vec{a}_{\text{perturb}}$ représente la somme des accélérations perturbatrices
+\end{itemize}
+
+\subsection{Intégration Numérique}
+
+Orekit utilise des intégrateurs numériques avancés pour résoudre ces équations différentielles. Les intégrateurs les plus couramment utilisés sont:
+
+\begin{itemize}
+    \item \textbf{Dormand-Prince} (ordre 8): Intégrateur à pas variable de haute précision
+    \item \textbf{Runge-Kutta}: Famille d'intégrateurs à pas fixe
+    \item \textbf{Adams-Bashforth-Moulton}: Intégrateur multi-pas pour les problèmes non raides
+\end{itemize}
+
+\subsection{Calcul des Périodes d'Éclipses}
+
+Le calcul des périodes d'éclipses s'effectue en:
+
+\begin{enumerate}
+    \item Propageant l'orbite du satellite sur la période d'intérêt
+    \item Détectant les moments d'entrée et de sortie d'éclipse
+    \item Calculant la durée de chaque éclipse comme la différence entre les temps de sortie et d'entrée
+\end{enumerate}
+
+Soit $t_{\text{entrée},i}$ et $t_{\text{sortie},i}$ les instants d'entrée et de sortie de la $i$-ème éclipse, la durée de cette éclipse est donnée par:
+
+\begin{equation}
+\Delta t_i = t_{\text{sortie},i} - t_{\text{entrée},i}
+\end{equation}
+
+\section{Facteurs Affectant la Précision des Calculs}
+
+\subsection{Précision des TLE}
+
+Les données TLE ont une précision limitée et se dégradent avec le temps. En général:
+\begin{itemize}
+    \item Pour les orbites basses (LEO): Précision acceptable pendant environ 3-5 jours
+    \item Pour les orbites géostationnaires: Précision acceptable pendant environ 1-2 semaines
+\end{itemize}
+
+\subsection{Modèles Physiques}
+
+La précision des calculs dépend également de la fidélité des modèles physiques utilisés:
+\begin{itemize}
+    \item Modèle de géopotentiel (jusqu'à quel degré/ordre)
+    \item Inclusion ou non des forces de marée
+    \item Précision du modèle d'atmosphère pour la traînée
+    \item Prise en compte de la pression de radiation solaire
+\end{itemize}
+
+\subsection{Paramètres d'Intégration}
+
+Les paramètres de l'intégrateur numérique affectent également la précision:
+\begin{itemize}
+    \item Tolérance relative et absolue
+    \item Taille minimale et maximale du pas d'intégration
+    \item Méthode d'interpolation utilisée
+\end{itemize}
+
+\section{Exemple de Calcul Complet}
+
+\subsection{Configuration Initiale}
+
+\begin{verbatim}
+// Initialisation des données TLE
+TLE tle = new TLE("1 25544U 98067A   21086.42859439  .00000318  00000-0  16195-4 0  9991",
+                  "2 25544  51.6445 354.6522 0003156  48.6176  25.4760 15.48939243277469");
+
+// Conversion en orbite
+TLEPropagator propagator = TLEPropagator.selectExtrapolator(tle);
+
+// Définition de la période d'analyse
+AbsoluteDate startDate = new AbsoluteDate(2023, 1, 1, 0, 0, 0.0, TimeScalesFactory.getUTC());
+AbsoluteDate endDate = startDate.shiftedBy(86400.0); // +24h
+
+// Création d'un collecteur d'événements d'éclipse
+List<AbsoluteDate> eclipseEntries = new ArrayList<>();
+List<AbsoluteDate> eclipseExits = new ArrayList<>();
+\end{verbatim}
+
+\subsection{Configuration du Détecteur d'Éclipses}
+
+\begin{verbatim}
+// Obtention des corps célestes
+PVCoordinatesProvider sun = CelestialBodyFactory.getSun();
+PVCoordinatesProvider earth = CelestialBodyFactory.getEarth();
+
+// Création du détecteur d'éclipses
+double earthRadius = Constants.RIGID_EARTH_SEMI_MAJOR_AXIS;
+EclipseDetector eclipseDetector = new EclipseDetector(sun, earthRadius, earth)
+    .withMaxCheck(60.0)
+    .withThreshold(1.0e-3)
+    .withHandler((s, detector, increasing) -> {
+        if (increasing) {
+            // Sortie d'éclipse
+            eclipseExits.add(s.getDate());
+        } else {
+            // Entrée en éclipse
+            eclipseEntries.add(s.getDate());
+        }
+        return Action.CONTINUE;
+    });
+
+// Ajout du détecteur au propagateur
+propagator.addEventDetector(eclipseDetector);
+\end{verbatim}
+
+\subsection{Propagation et Collecte des Résultats}
+
+\begin{verbatim}
+// Propagation de l'orbite
+SpacecraftState finalState = propagator.propagate(startDate, endDate);
+
+// Traitement des résultats
+List<EclipsePeriod> eclipsePeriods = new ArrayList<>();
+for (int i = 0; i < Math.min(eclipseEntries.size(), eclipseExits.size()); i++) {
+    AbsoluteDate entryDate = eclipseEntries.get(i);
+    AbsoluteDate exitDate = eclipseExits.get(i);
+    
+    double durationInSeconds = exitDate.durationFrom(entryDate);
+    
+    EclipsePeriod period = new EclipsePeriod();
+    period.setEntryTime(entryDate.toString());
+    period.setExitTime(exitDate.toString());
+    period.setDurationMinutes(durationInSeconds / 60.0);
+    
+    eclipsePeriods.add(period);
+}
+\end{verbatim}
+
+\section{Conclusion}
+
+Le calcul des périodes d'éclipses satellitaires est un problème d'astrodynamique qui combine:
+
+\begin{itemize}
+    \item Une modélisation géométrique de l'ombre de la Terre
+    \item La propagation précise des orbites satellitaires
+    \item Des techniques avancées de détection d'événements
+\end{itemize}
+
+Orekit fournit une implementation robuste et précise qui permet de:
+\begin{itemize}
+    \item Calculer les fenêtres d'éclipse pour la planification des missions
+    \item Estimer les durées d'éclipse pour le dimensionnement des systèmes d'alimentation
+    \item Analyser l'impact des éclipses sur les opérations satellitaires
+\end{itemize}
+
+Ces calculs sont essentiels pour la conception, la planification et l'exploitation des systèmes spatiaux.
+
+\end{document}
