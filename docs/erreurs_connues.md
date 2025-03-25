@@ -73,6 +73,44 @@ Nous avons résolu ce problème en remplaçant le contenu du fichier UTC-TAI.his
      ```
 3. Redémarrer l'application après correction
 
+### 3. Erreur 500 - "no JPL ephemerides binary files found"
+
+**Problème** : L'application ne trouve pas les fichiers d'éphémérides JPL (Jet Propulsion Laboratory) nécessaires pour certains calculs de positionnement précis.
+
+**Symptômes** :
+
+- Erreur 500 lors de l'appel à l'API `/eclipse/calculate`
+- Message d'erreur dans les logs mentionnant "no JPL ephemerides binary files found"
+- L'erreur peut survenir lorsque les calculs nécessitent une grande précision ou utilisent certaines fonctionnalités spécifiques d'Orekit
+
+**Causes possibles** :
+
+- Les fichiers d'éphémérides JPL sont absents du répertoire `orekit-data`
+- Le téléchargement des fichiers a échoué lors de l'initialisation
+- L'application tente d'utiliser un modèle qui nécessite ces fichiers alors qu'ils ne sont pas disponibles
+
+**Solutions** :
+
+1. Télécharger les fichiers d'éphémérides JPL depuis le site officiel de la NASA/JPL ou via les ressources Orekit
+2. Placer les fichiers dans le répertoire `orekit-data` avec les noms attendus par Orekit
+3. Les fichiers typiquement requis sont:
+   - `de405.binle` ou `de430.binle` (selon la version utilisée)
+   - `de405-masses.binle` ou `de430-masses.binle`
+4. Alternativement, modifier votre code pour utiliser un modèle qui ne dépend pas des éphémérides JPL:
+   ```java
+   // Au lieu d'utiliser:
+   CelestialBody sun = CelestialBodyFactory.getSun();
+   
+   // Utiliser une version qui n'utilise pas les éphémérides JPL:
+   CelestialBody sun = CelestialBodyFactory.getSun(FramesFactory.getEME2000());
+   ```
+
+**Notes importantes** :
+
+- Les fichiers d'éphémérides JPL sont volumineux (plusieurs MB) et contiennent des données astronomiques précises
+- Pour de nombreux calculs d'éclipse standard, ces fichiers ne sont pas strictement nécessaires et des modèles analytiques plus simples peuvent suffire
+- Si vous n'avez pas besoin de la précision extrême des éphémérides JPL, configurer votre application pour utiliser des modèles alternatifs est souvent plus simple
+
 ## Erreurs liées aux calculs d'éclipses
 
 ### 3. Erreur 500 - "TLE orbit date is outside of covered range"
