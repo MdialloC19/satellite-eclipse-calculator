@@ -76,6 +76,8 @@ public class EclipseCalculatorService {
             
             // Créer le propagateur TLE
             Propagator propagator = TLEPropagator.selectExtrapolator(tle);
+
+            System.out.println("propagator: " + propagator);
             
             // Obtenir les corps célestes pour la détection d'éclipse
             Frame inertialFrame = FramesFactory.getEME2000();

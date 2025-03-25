@@ -42,6 +42,7 @@ public class OrekitDataLoader {
                             Path absolutePath = Paths.get(orekitDataPath).toAbsolutePath();
                             System.setProperty("orekit.data.path", absolutePath.toString());
                             orekitDataPath = absolutePath.toString();
+                            System.out.println("Orekit data path: " + orekitDataPath);
                         }
                         
                         logger.info("Chargement des données Orekit depuis {}", orekitDataPath);
@@ -56,7 +57,8 @@ public class OrekitDataLoader {
                         // Vérifier que les fichiers essentiels existent
                         Path utcTaiFile = Paths.get(orekitDataPath, "UTC-TAI.history");
                         Path eopC04File = Paths.get(orekitDataPath, "eopc04_IAU2000.62-now");
-                        
+                        System.out.println("utcTaiFile: " + utcTaiFile);
+                        System.out.println("eopC04File: " + eopC04File);
                         if (!Files.exists(utcTaiFile) || !Files.exists(eopC04File)) {
                             logger.warn("Fichiers essentiels manquants dans {}: UTC-TAI.history={}, eopc04_IAU2000.62-now={}", 
                                     orekitDataPath, Files.exists(utcTaiFile), Files.exists(eopC04File));
