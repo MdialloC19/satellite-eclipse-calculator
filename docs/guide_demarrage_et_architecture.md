@@ -18,7 +18,7 @@ Le **Satellite Eclipse Calculator** est une application Spring Boot qui fournit 
 
 ### Structure du projet
 
-```
+```text
 satellite-eclipse-calculator/
 ├── src/                           # Code source
 │   ├── main/java/com/satellite/eclipse/
@@ -52,6 +52,7 @@ satellite-eclipse-calculator/
 #### 1. Controllers (Contrôleurs)
 
 Le contrôleur `EclipseCalculatorController` expose l'API REST et gère les requêtes entrantes :
+
 - Validation des données d'entrée
 - Transmission des demandes au service
 - Formatage des réponses
@@ -124,7 +125,8 @@ java -jar target/satellite-eclipse-calculator-0.0.1-SNAPSHOT.jar --logging.level
 Pour confirmer que l'application a démarré correctement :
 
 1. Vérifiez les logs de démarrage pour les messages :
-   ```
+
+   ```text
    Données Orekit chargées avec succès
    Tomcat started on port 8081
    Started SatelliteEclipseCalculatorApplication in X.XXX seconds
@@ -152,28 +154,43 @@ Pour confirmer que l'application a démarré correctement :
 L'application nécessite deux fichiers de données Orekit critiques :
 
 1. **UTC-TAI.history** : Contient l'historique des écarts entre les échelles de temps UTC et TAI.
+
+   **Format critique** : Ce fichier doit **exactement** respecter le format officiel de l'IERS :
+
+   ```text
+   ---------------
+   UTC-TAI.history
+   ---------------
+   RELATIONSHIP BETWEEN TAI AND UTC
+   ------------------------------------------------------------------------------- 
+   Limits of validity(at 0h UTC)       TAI - UTC  
    
-   Format attendu :
-   ```
-   # UTC-TAI.history
-   # Dernière mise à jour : 2025-03-25
-   # Format : date_julienne TAI-UTC_en_secondes
-   2441317.5  10.0
-   2441499.5  11.0
-   2441683.5  12.0
+   1961  Jan.  1 - 1961  Aug.  1     1.422 818 0s + (MJD - 37 300) x 0.001 296s
+         Aug.  1 - 1962  Jan.  1     1.372 818 0s +        ""
+   1962  Jan.  1 - 1963  Nov.  1     1.845 858 0s + (MJD - 37 665) x 0.001 123 2s
+   1963  Nov.  1 - 1964  Jan.  1     1.945 858 0s +        ""
    ...
    ```
+   
+   **Éléments importants** :
+   - Télécharger le fichier directement depuis la source officielle : [UTC-TAI.history](https://hpiers.obspm.fr/iers/bul/bulc/UTC-TAI.history)
+   - **Ne pas modifier** le format, même si certaines sections semblent être des commentaires
+   - Conserver les en-têtes, les tirets, les espaces et le formatage exact
+   - **À savoir** : Un format incorrect de ce fichier est la cause la plus fréquente d'erreurs 500 lors des appels API
 
 2. **eopc04_IAU2000.62-now** : Contient les paramètres d'orientation de la Terre (EOP).
-   
+
    Format attendu :
-   ```
+
+   ```text
    # Date MJD      TAI-UTC  x_pole   y_pole   UT1-UTC   LOD     dPsi     dEpsilon   dX       dY
    # (0h UTC)      (s)      (")      (")      (s)       (s)     (mas)    (mas)      (mas)    (mas)
    59669 37.0 0.043170 0.377392 0.0340052 0.0017792 -0.002710 -0.005254 -0.000239 -0.000268
    59670 37.0 0.042724 0.377892 0.0339954 0.0024000 -0.002708 -0.005220 -0.000240 -0.000270
    ...
    ```
+   
+   **Source officielle** : [Fichiers IERS EOP](https://hpiers.obspm.fr/iers/eop/eopc04)
 
 ### Flux de chargement des données
 
@@ -187,23 +204,39 @@ Lors du démarrage de l'application, la séquence suivante s'exécute :
 4. Configuration du `DataProvidersManager` d'Orekit avec le répertoire
 5. Les données sont chargées et disponibles pour les calculs
 
+**Note concernant l'initialisation** : Lors de cette phase, Orekit parcourt les fichiers dans le répertoire `orekit-data` et les analyse en fonction de leur nom et de leur extension. Si un fichier est présent mais mal formaté, l'application peut démarrer mais échouera plus tard lors des calculs. C'est pourquoi il est essentiel de s'assurer que les fichiers ont le bon format.
+
 ### Solutions aux problèmes courants
 
-Si les données Orekit ne sont pas correctement chargées :
+Si les données Orekit ne sont pas correctement chargées ou si vous rencontrez des erreurs 500 lors de l'utilisation de l'API :
 
-1. **Vérifier l'existence des fichiers** :
+1. **Erreur 'no IERS UTC-TAI history data loaded'** :
+   - Téléchargez à nouveau le fichier `UTC-TAI.history` depuis la source officielle
+   - Ne modifiez pas son format, même si certaines parties semblent être des commentaires ou des en-têtes
+   - Consultez notre [document sur les erreurs connues](./erreurs_connues.md) pour plus de détails
+
+2. **Vérifier l'existence des fichiers** :
+
    ```bash
    ls -la satellite-eclipse-calculator/orekit-data/
    ```
 
-2. **Vérifier le format des fichiers** : Assurez-vous que les fichiers respectent les formats décrits ci-dessus
+3. **Vérifier que les fichiers n'ont pas d'extensions supplémentaires** : 
+   - Par exemple, si le fichier a été téléchargé comme `UTC-TAI.history.txt`, renommez-le en `UTC-TAI.history`
 
-3. **Vérifier les permissions** : Les fichiers doivent être lisibles
+4. **Vérifier les permissions** : Les fichiers doivent être lisibles
+
    ```bash
    chmod 644 satellite-eclipse-calculator/orekit-data/*
    ```
 
-4. **Recréer manuellement les fichiers** : Si nécessaire, utilisez les exemples ci-dessus comme modèles
+5. **Redémarrer l'application après avoir corrigé les fichiers** :
+
+   ```bash
+   mvn spring-boot:run
+   ```
+
+**Important** : Nous avons constaté que les erreurs les plus fréquentes sont liées au format du fichier `UTC-TAI.history`. Dans notre cas, la résolution a consisté à utiliser le fichier original sans modification.
 
 ## Points d'API
 
@@ -211,13 +244,14 @@ L'application expose les points d'API suivants :
 
 ### Calcul d'éclipses
 
-```
+```http
 POST /satellite-eclipse/api/eclipse/calculate
 ```
 
 #### Paramètres de requête
 
 Format JSON :
+
 ```json
 {
   "tle": {
@@ -230,9 +264,28 @@ Format JSON :
 }
 ```
 
+**Exemple testé et fonctionnel** avec le satellite NOAA 19 :
+
+```json
+{
+  "tle": {
+    "satelliteName": "NOAA 19",
+    "line1": "1 33591U 09005A   25084.51023600  .00000082  00000-0  67956-4 0  9990",
+    "line2": "2 33591  99.1709 149.6914 0013503 297.9226  62.0429 14.12432383828952"
+  },
+  "startDate": "2025-03-25T00:00:00Z",
+  "endDate": "2025-03-26T00:00:00Z"
+}
+```
+
+**Points importants** :
+- Assurez-vous que le champ parent pour les données TLE est `"tle"` (pas `"tleData"` comme dans certains exemples)
+- Les dates doivent être au format ISO 8601 avec le 'Z' indiquant UTC
+
 #### Réponse
 
 Format JSON :
+
 ```json
 {
   "satellite": "NOM_DU_SATELLITE",
@@ -264,7 +317,7 @@ Format JSON :
 
 ### Diagramme de séquence simplifié
 
-```
+```text
 Client           Controller                  Service                   Orekit
   |                 |                           |                         |
   |--- Requête ---->|                           |                         |

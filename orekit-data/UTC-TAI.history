@@ -5,7 +5,7 @@
  RELATIONSHIP BETWEEN TAI AND UTC
  -------------------------------------------------------------------------------
  Limits of validity(at 0h UTC)       TAI - UTC
-
+ 
  1961  Jan.  1 - 1961  Aug.  1     1.422 818 0s + (MJD - 37 300) x 0.001 296s
        Aug.  1 - 1962  Jan.  1     1.372 818 0s +        ""
  1962  Jan.  1 - 1963  Nov.  1     1.845 858 0s + (MJD - 37 665) x 0.001 123 2s
