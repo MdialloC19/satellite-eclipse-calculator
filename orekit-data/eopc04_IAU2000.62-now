@@ -1,0 +1,4 @@
+# Earth Orientation Parameters
+# File created for Orekit by SatelliteEclipseCalculator
+# This is a minimal placeholder file
+Date      MJD      x         y         UT1-UTC      LOD       dPsi    dEpsilon     dX        dY     xError  yError ut1Error lodError dPsiError  dEpsError  dXError   dYError
